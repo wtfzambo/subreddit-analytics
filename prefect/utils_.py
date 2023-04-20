@@ -97,10 +97,10 @@ def cache_results(*, refresh_cache=False):
     return decorator
 
 
-def chunked(iterable: list[T] | tuple[T], n: int) -> list[list[T]]:
+def chunked(iterable: list[T] | tuple[T], chunk_size: int) -> list[list[T]]:
     d = {}
     for i, x in enumerate(iterable):
-        d.setdefault(i // n, []).append(x)
+        d.setdefault(i // chunk_size, []).append(x)
     return list(d.values())
 
 

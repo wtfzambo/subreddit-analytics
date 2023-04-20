@@ -60,11 +60,18 @@ def get_submission_ids_but_im_cheating():
     return [f"{SUBMISSION}_{post_id}" for post_id in post_ids]
 
 
-@task(name="Get submission from ids")
+@task(name="Get submission from ids", log_prints=True)
 async def get_submission_from_ids(ids: list[str]):
     with get_reddit_client(is_async=True) as reddit:
         subs: AsyncGenerator[Submission, None] = reddit.info(fullnames=ids)  # type: ignore
         submissions = [sub async for sub in subs]
+
+        coro = map(
+            lambda sub: (sub.load(), print(f"Loading submission {sub.id}"))[0],
+            submissions,
+        )
+        _ = await asyncio.gather(*coro)
+
         return submissions
 
 
@@ -72,10 +79,14 @@ async def get_submission_from_ids(ids: list[str]):
     name="Add records to Duckdb",
     task_run_name="Add {table} to Duckdb",
     cache_key_fn=task_input_hash,
+    # refresh_cache=True,
 )
 def add_records_to_duckdb(
     records: list[dict[str, Any]], table: Literal["submissions"] | Literal["comments"]
 ):
+    if not len(records):
+        return
+
     df = pd.DataFrame.from_records(records)
 
     try:
@@ -95,7 +106,7 @@ def add_records_to_duckdb(
 
 @task(name="Get submission comments")
 async def get_submission_comments(submission: Submission):
-    submission.comments.replace_more(limit=None)
+    await submission.comments.replace_more(limit=None)
     comments_list = submission.comments.list()
 
     if isinstance(comments_list, Coroutine):
@@ -109,15 +120,15 @@ async def get_submission_comments(submission: Submission):
 
 
 @flow(
-    log_prints=True,
     name="Get subreddit data",
     flow_run_name="r/{subreddit} | from '{start_date}' to '{end_date}'",
+    log_prints=True,
     task_runner=ConcurrentTaskRunner(),
 )
 async def get_subreddit_data(start_date: str, end_date: str, subreddit: str):
     # submission_ids = get_submission_ids(start_date, end_date, subreddit)
     submission_ids = get_submission_ids_but_im_cheating()
-    submission_ids_chunked = chunked(submission_ids, 100)
+    submission_ids_chunked = chunked(submission_ids, 100)[:1]
     submission_futures = await get_submission_from_ids.map(
         cast(list[str], submission_ids_chunked)
     )
@@ -126,17 +137,20 @@ async def get_subreddit_data(start_date: str, end_date: str, subreddit: str):
     for future in submission_futures:
         submissions.extend(await future.result())
 
-    # create duckdb connection
-    _ = DuckDBManager(subreddit)
+    # submissions = submissions[:10]
+    submission_comments_futures = await get_submission_comments.map(
+        cast(Submission, submissions)
+    )
 
-    submissions = submissions[:10]
-
-    for submission in submissions:
-        submission_comments = await get_submission_comments(submission)
-        submission_comments_clean = clean_entries(submission_comments)
-        add_records_to_duckdb(submission_comments_clean, "comments")
+    comments_clean = []
+    for future in submission_comments_futures:
+        comments_clean.extend(clean_entries(await future.result()))
 
     submissions_clean = clean_entries(submissions)
+
+    # create duckdb connection
+    DuckDBManager(subreddit)
+    add_records_to_duckdb(comments_clean, "comments")
     add_records_to_duckdb(submissions_clean, "submissions")
 
 
@@ -148,11 +162,6 @@ if __name__ == "__main__":
     asyncio.run(main())
 
 
-# 3. from the Submission list, 3 things must be done:
-#   - Build the submission table - Remember that `author` is an object, not a string.
-#     So it needs to be replaced using `Author.name`.`
-#   - Parse Submission comments
-#
 # For comments, there are 3 possibilities:
 # - No comments -> Skip (get this from actual comment list, not from property `num_comments`)
 # - Comments without Load more -> Append to comments table
