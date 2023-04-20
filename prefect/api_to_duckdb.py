@@ -1,9 +1,9 @@
 import asyncio
 from datetime import datetime
-from typing import AsyncGenerator, cast
+from typing import Any, AsyncGenerator, Coroutine, Literal, cast
 
 import pandas as pd
-from asyncpraw.models import Submission
+from asyncpraw.models import Comment, Submission
 from pmaw import PushshiftAPI
 from utils_ import (
     CREATE_OR_REPLACE_TABLE,
@@ -12,10 +12,9 @@ from utils_ import (
     DuckDBManager,
     cache_results,
     chunked,
-    clean_up_reddit_object,
+    clean_entries,
     get_project_root,
     get_reddit_client,
-    replace_author_object_with_name,
 )
 
 from prefect import flow, task
@@ -69,23 +68,44 @@ async def get_submission_from_ids(ids: list[str]):
         return submissions
 
 
-@task(name="Add submissions to Duckdb", cache_key_fn=task_input_hash)
-def add_submissions_to_duckdb(submissions: list[Submission]):
-    submissions_as_dict = [vars(sub) for sub in submissions]
-    submissions_with_author = list(
-        map(replace_author_object_with_name, submissions_as_dict)
-    )
-    submissions_clean = map(clean_up_reddit_object, submissions_with_author)
-    df = pd.DataFrame.from_records(submissions_clean)
-    df_head = df.head()  # noqa
+@task(
+    name="Add records to Duckdb",
+    task_run_name="Add {table} to Duckdb",
+    cache_key_fn=task_input_hash,
+)
+def add_records_to_duckdb(
+    records: list[dict[str, Any]], table: Literal["submissions"] | Literal["comments"]
+):
+    df = pd.DataFrame.from_records(records)
 
+    try:
+        match table:
+            case "submissions":
+                df.drop("preview", axis=1, inplace=True)
+            case "comments":
+                df.drop("all_awardings", axis=1, inplace=True)
+    except KeyError as e:
+        print(f"{e}, continuing...")
+
+    df_header = df.head(0)  # noqa
     con = DuckDBManager().duckdb_con
-    con.sql(CREATE_TABLE_IF_NOT_EXISTS.format(table="submissions", df="df_head"))
-    con.sql(CREATE_OR_REPLACE_TABLE.format(table="submissions", df="df"))
+    con.sql(CREATE_TABLE_IF_NOT_EXISTS.format(table=table, df="df_header"))
+    con.sql(CREATE_OR_REPLACE_TABLE.format(table=table, df="df"))
 
 
-def get_submission_comments(submission: Submission):
-    ...
+@task(name="Get submission comments")
+async def get_submission_comments(submission: Submission):
+    submission.comments.replace_more(limit=None)
+    comments_list = submission.comments.list()
+
+    if isinstance(comments_list, Coroutine):
+        comments_list = await comments_list
+
+    comments: list[Comment] = []
+    for comment in comments_list:
+        comments.append(comment)
+
+    return comments
 
 
 @flow(
@@ -109,8 +129,15 @@ async def get_subreddit_data(start_date: str, end_date: str, subreddit: str):
     # create duckdb connection
     _ = DuckDBManager(subreddit)
 
-    one_sub = [submissions[0]]
-    add_submissions_to_duckdb(one_sub)
+    submissions = submissions[:10]
+
+    for submission in submissions:
+        submission_comments = await get_submission_comments(submission)
+        submission_comments_clean = clean_entries(submission_comments)
+        add_records_to_duckdb(submission_comments_clean, "comments")
+
+    submissions_clean = clean_entries(submissions)
+    add_records_to_duckdb(submissions_clean, "submissions")
 
 
 async def main():
@@ -124,7 +151,6 @@ if __name__ == "__main__":
 # 3. from the Submission list, 3 things must be done:
 #   - Build the submission table - Remember that `author` is an object, not a string.
 #     So it needs to be replaced using `Author.name`.`
-#   - Add Submission author to the author's table (TBD when we're doing this).
 #   - Parse Submission comments
 #
 # For comments, there are 3 possibilities:

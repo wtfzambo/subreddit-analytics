@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Literal, TypeVar, overload
 
 import duckdb
-from asyncpraw.models import Redditor
+from asyncpraw.models import Comment, Redditor, Submission
 from asyncpraw.reddit import Reddit as AReddit
 from dotenv import load_dotenv
 from praw.reddit import Reddit as SReddit
@@ -128,3 +128,9 @@ def replace_author_object_with_name(sub_or_comment_dict: dict[str, Any]):
         if isinstance(sub_or_comment_dict["author"], Redditor)
         else sub_or_comment_dict
     )
+
+
+def clean_entries(entries: list[Submission] | list[Comment]):
+    entries_as_dict = [vars(sub) for sub in entries]
+    entries_with_author = list(map(replace_author_object_with_name, entries_as_dict))
+    return list(map(clean_up_reddit_object, entries_with_author))
