@@ -6,12 +6,32 @@ from functools import wraps
 from pathlib import Path
 from typing import Any, Literal, TypeVar, overload
 
+import duckdb
+from asyncpraw.models import Redditor
 from asyncpraw.reddit import Reddit as AReddit
 from dotenv import load_dotenv
 from praw.reddit import Reddit as SReddit
 
 
 load_dotenv()
+
+
+class DuckDBManager:
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls.__initialized = False
+        return cls._instance
+
+    def __init__(self, subreddit: str | None = None):
+        if not self.__initialized:
+            root = get_project_root()
+            duckdb_path = root / f"assets/{subreddit}.duckdb"
+            self.duckdb_con = duckdb.connect(duckdb_path.as_posix())
+            self.__initialized = True
+
 
 T = TypeVar("T")
 
@@ -22,6 +42,10 @@ SUBMISSION = "t3"
 MESSAGE = "t4"
 SUBREDDIT = "t5"
 AWARD = "t6"
+
+# SQL Queries
+CREATE_TABLE_IF_NOT_EXISTS = "CREATE TABLE IF NOT EXISTS {table} AS SELECT * FROM {df}"
+CREATE_OR_REPLACE_TABLE = "CREATE OR REPLACE TABLE {table} AS SELECT * FROM {table} UNION BY NAME SELECT * FROM {df}"
 
 
 @overload
@@ -82,3 +106,25 @@ def chunked(iterable: list[T] | tuple[T], n: int) -> list[list[T]]:
 
 def get_project_root():
     return Path(__file__).parent.parent
+
+
+def _isPrimitive(obj):
+    return not hasattr(obj, "__dict__")
+
+
+def _no_empty_obj(v):
+    if not isinstance(v, (list, dict)):
+        return v
+    return None if len(v) == 0 else v
+
+
+def clean_up_reddit_object(d: dict):
+    return {k: _no_empty_obj(v) for k, v in d.items() if _isPrimitive(v)}
+
+
+def replace_author_object_with_name(sub_or_comment_dict: dict[str, Any]):
+    return (
+        sub_or_comment_dict | {"author": sub_or_comment_dict["author"].name}
+        if isinstance(sub_or_comment_dict["author"], Redditor)
+        else sub_or_comment_dict
+    )

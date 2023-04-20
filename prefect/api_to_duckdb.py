@@ -1,19 +1,24 @@
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import AsyncGenerator, cast
 
 import pandas as pd
 from asyncpraw.models import Submission
 from pmaw import PushshiftAPI
 from utils_ import (
+    CREATE_OR_REPLACE_TABLE,
+    CREATE_TABLE_IF_NOT_EXISTS,
     SUBMISSION,
+    DuckDBManager,
     cache_results,
     chunked,
+    clean_up_reddit_object,
     get_project_root,
     get_reddit_client,
+    replace_author_object_with_name,
 )
 
-from prefect import flow, get_run_logger, task
+from prefect import flow, task
 from prefect.task_runners import ConcurrentTaskRunner
 from prefect.tasks import task_input_hash
 
@@ -45,7 +50,7 @@ def get_submission_ids(start_date: str, end_date: str, subreddit: str):
 
 @task(log_prints=True, name="Get submission ids from CSV")
 def get_submission_ids_but_im_cheating():
-    # Fucking PushshiftAPI seems to have gone down while I was working on this project.
+    # PushshiftAPI seems to have gone down while I was working on this project.
     # Luckily I had saved about a year of submission ids in a csv a week before, so I'm
     # going to use that instead.
     root = get_project_root()
@@ -64,6 +69,25 @@ async def get_submission_from_ids(ids: list[str]):
         return submissions
 
 
+@task(name="Add submissions to Duckdb", cache_key_fn=task_input_hash)
+def add_submissions_to_duckdb(submissions: list[Submission]):
+    submissions_as_dict = [vars(sub) for sub in submissions]
+    submissions_with_author = list(
+        map(replace_author_object_with_name, submissions_as_dict)
+    )
+    submissions_clean = map(clean_up_reddit_object, submissions_with_author)
+    df = pd.DataFrame.from_records(submissions_clean)
+    df_head = df.head()  # noqa
+
+    con = DuckDBManager().duckdb_con
+    con.sql(CREATE_TABLE_IF_NOT_EXISTS.format(table="submissions", df="df_head"))
+    con.sql(CREATE_OR_REPLACE_TABLE.format(table="submissions", df="df"))
+
+
+def get_submission_comments(submission: Submission):
+    ...
+
+
 @flow(
     log_prints=True,
     name="Get subreddit data",
@@ -73,7 +97,6 @@ async def get_submission_from_ids(ids: list[str]):
 async def get_subreddit_data(start_date: str, end_date: str, subreddit: str):
     # submission_ids = get_submission_ids(start_date, end_date, subreddit)
     submission_ids = get_submission_ids_but_im_cheating()
-
     submission_ids_chunked = chunked(submission_ids, 100)
     submission_futures = await get_submission_from_ids.map(
         cast(list[str], submission_ids_chunked)
@@ -83,7 +106,11 @@ async def get_subreddit_data(start_date: str, end_date: str, subreddit: str):
     for future in submission_futures:
         submissions.extend(await future.result())
 
-    print(submissions)
+    # create duckdb connection
+    _ = DuckDBManager(subreddit)
+
+    one_sub = [submissions[0]]
+    add_submissions_to_duckdb(one_sub)
 
 
 async def main():
