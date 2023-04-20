@@ -1,0 +1,28 @@
+{
+    "editor.rulers": [
+        {"column": 88}
+    ],
+    "python.envFile": "${workspaceFolder}/.env",
+    "python.defaultInterpreterPath": "./.venv/bin/python",
+    "python.linting.enabled": true,
+    "python.linting.flake8Enabled": true,
+    "black-formatter.importStrategy": "fromEnvironment",
+    "isort.importStrategy": "fromEnvironment",
+    "flake8.importStrategy": "fromEnvironment",
+    "python.formatting.provider": "none",
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": true
+        }
+    },
+    "vsicons.associations.files": [
+        {
+            "icon": "db",
+            "extends": "db",
+            "format": "svg",
+            "extensions": ["duckdb"]
+        }
+    ]
+}

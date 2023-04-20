@@ -1,0 +1,6 @@
+cache-dir = ".cache"
+
+[virtualenvs]
+create = true
+in-project = true
+prefer-active-python = true
