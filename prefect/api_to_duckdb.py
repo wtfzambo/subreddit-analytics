@@ -74,22 +74,22 @@ async def get_submission_from_ids(ids: list[str]):
     )
     _ = await asyncio.gather(*coro)
 
-    return submissions
+    for sub in submissions:
+        yield sub
 
 
 @task(name="Get submission comments")
-async def get_submission_comments(submission: Submission):
+async def get_submission_comments(
+    submission: Submission,
+) -> AsyncGenerator[Comment, None]:
     await submission.comments.replace_more(limit=None)
     comments_list = submission.comments.list()
 
     if isinstance(comments_list, Coroutine):
         comments_list = await comments_list
 
-    comments: list[Comment] = []
     for comment in comments_list:
-        comments.append(comment)
-
-    return comments
+        yield comment
 
 
 @task(
@@ -132,22 +132,24 @@ async def get_subreddit_data(start_date: str, end_date: str, subreddit: str):
     submission_ids = get_submission_ids_but_im_cheating()
     submission_ids_chunked = chunked(submission_ids, 29)[:1]
 
-    submission_futures = await get_submission_from_ids.map(
+    submission_futures = get_submission_from_ids.map(
         cast(list[str], submission_ids_chunked)
     )
-    submissions: list[Submission] = []
+    submissions_all: list[Submission] = []
     for future in submission_futures:
-        submissions.extend(await future.result())
+        submissions = [submission async for submission in future.result()]
+        submissions_all.extend(submissions)
 
-    submission_comments_futures = await get_submission_comments.map(
-        cast(Submission, submissions)
+    submission_comments_futures = get_submission_comments.map(
+        cast(Submission, submissions_all)
     )
-    comments: list[Comment] = []
+    comments_all: list[Comment] = []
     for future in submission_comments_futures:
-        comments.extend(await future.result())
+        comments = [comment async for comment in future.result()]
+        comments_all.extend(comments)
 
-    submissions_clean = clean_entries(submissions)
-    comments_clean = clean_entries(comments)
+    submissions_clean = clean_entries(submissions_all)
+    comments_clean = clean_entries(comments_all)
 
     reddit_manager = AsyncRedditManger()
     for instance in reddit_manager.reddit_instances:
