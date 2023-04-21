@@ -138,7 +138,7 @@ def _no_empty_obj(v):
     return None if len(v) == 0 else v
 
 
-def clean_up_reddit_object(d: dict):
+def clean_up_reddit_object(d: dict) -> dict[str, Any]:
     return {k: _no_empty_obj(v) for k, v in d.items() if _isPrimitive(v)}
 
 
@@ -153,4 +153,6 @@ def replace_author_object_with_name(sub_or_comment_dict: dict[str, Any]):
 def clean_entries(entries: list[Submission] | list[Comment]):
     entries_as_dict = [vars(sub) for sub in entries]
     entries_with_author = list(map(replace_author_object_with_name, entries_as_dict))
-    return list(map(clean_up_reddit_object, entries_with_author))
+    clean_entries = list(map(clean_up_reddit_object, entries_with_author))
+    clean_entries.sort(key=lambda r: r["id"])
+    return clean_entries
