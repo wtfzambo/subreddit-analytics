@@ -7,8 +7,9 @@ import pandas as pd
 from asyncpraw.models import Comment, Submission
 from pmaw import PushshiftAPI
 from utils_ import (
-    CREATE_OR_REPLACE_TABLE,
     CREATE_TABLE_IF_NOT_EXISTS,
+    INSERT_OR_REPLACE_INTO,
+    SCHEMAS,
     SUBMISSION,
     AsyncRedditManger,
     DuckDBManager,
@@ -17,6 +18,7 @@ from utils_ import (
     clean_entries,
     get_project_root,
     get_reddit_client,
+    get_schema_string,
 )
 
 from prefect import flow, task
@@ -96,8 +98,8 @@ async def get_submission_comments(
 @task(
     name="Add records to Duckdb",
     task_run_name="Add {table} to Duckdb",
+    log_prints=True,
     cache_key_fn=task_input_hash,
-    refresh_cache=True,
 )
 def add_records_to_duckdb(
     records: list[dict[str, Any]], table: Literal["submissions"] | Literal["comments"]
@@ -105,22 +107,18 @@ def add_records_to_duckdb(
     if not len(records):
         return
 
+    table_schema = SCHEMAS[table]
+    fields = list(table_schema.keys())
+
     df = pd.DataFrame.from_records(records)
-    print(f"Found {len(df)} records for {table}, adding them to duckdb")
+    df = df[fields]  # Need to sort the df columns in the same order as the schema
+    print(f"Found {len(df)} records for {table}, adding them to Duckdb")
 
-    try:
-        match table:
-            case "submissions":
-                df.drop("preview", axis=1, inplace=True)
-            case "comments":
-                df.drop(["all_awardings", "gildings"], axis=1, inplace=True)
-    except KeyError as e:
-        print(f"{e}, continuing...")
+    schema_string = get_schema_string(table_schema)
 
-    df_header = df.head(0)  # noqa
     con = DuckDBManager().duckdb_con
-    con.sql(CREATE_TABLE_IF_NOT_EXISTS.format(table=table, df="df_header"))
-    con.sql(CREATE_OR_REPLACE_TABLE.format(table=table, df="df"))
+    con.sql(CREATE_TABLE_IF_NOT_EXISTS.format(table=table, schema=schema_string))
+    con.sql(INSERT_OR_REPLACE_INTO.format(table=table, from_="df"))
 
 
 @flow(
@@ -132,7 +130,7 @@ def add_records_to_duckdb(
 async def get_subreddit_data(start_date: str, end_date: str, subreddit: str):
     # submission_ids = get_submission_ids(start_date, end_date, subreddit)
     submission_ids = get_submission_ids_but_im_cheating()
-    submission_ids_chunked = chunked(submission_ids, 100)
+    submission_ids_chunked = chunked(submission_ids, 50)[:1]
 
     print("Getting all submissions...")
     submission_futures = get_submissions_from_ids.map(
@@ -152,6 +150,7 @@ async def get_subreddit_data(start_date: str, end_date: str, subreddit: str):
         comments = [comment async for comment in future.result()]
         comments_all.extend(comments)
 
+    print("Closing reddit sessions...")
     reddit_manager = AsyncRedditManger()
     for instance in reddit_manager.reddit_instances:
         await instance.close()
@@ -185,27 +184,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-
-# For comments, there are 3 possibilities:
-# - No comments -> Skip (get this from actual comment list, not from property `num_comments`)
-# - Comments without Load more -> Append to comments table
-# - Comments WITH Load more -> run `submission.comments.replace_more(limit=None)` ->
-#   -> Append to comments table
-# For both 2nd and 3rd case, also append author to authors table.
-#
-# At a high level, flow could be something like this:
-# 1 - Get submission IDs
-# 2 - From IDs get submission objects
-# 3 - From Submission objects build submission table
-# 4 - Parse each Submission object for comments
-#
-# Common operations between submissions and comments:
-# - Convert from object to dict
-# - Keep only primitive variables
-# - Replace author object with author's name
-# - Somehow extract author and append to authors table. NOTE: This could be done at the end using
-#   duckdb tables directly and `INSERT INTO ON CONFLICT` statement so that authors can be
-#   already unique.
-# - Append to duckdb table
-# - Eventually recast unix time columns to INT

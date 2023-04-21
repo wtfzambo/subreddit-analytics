@@ -63,9 +63,74 @@ MESSAGE = "t4"
 SUBREDDIT = "t5"
 AWARD = "t6"
 
+# data types
+BOOLEAN = "BOOLEAN"
+TINYINT = "TINYINT"  # 1 byte
+SHORT = "SHORT"  # 2 bytes
+INT = "INT"  # 4 bytes
+LONG = "LONG"  # 8 bytes
+FLOAT = "FLOAT"  # single-precision floating point
+DOUBLE = "DOUBLE"  # double-precision floating point
+DECIMAL = "DECIMAL"
+DATE = "DATE"
+TIMESTAMP = "TIMESTAMP"
+VARCHAR = "VARCHAR"
+
+PK = " PRIMARY KEY"
+NOT_NULL = " NOT NULL"
+
+SCHEMAS = {
+    "submissions": {
+        "id": VARCHAR + PK,
+        "name": VARCHAR + NOT_NULL,
+        "archived": BOOLEAN,
+        "author": VARCHAR,
+        "author_fullname": VARCHAR,
+        "author_flair_text": VARCHAR,
+        "created": LONG,
+        "created_utc": LONG,
+        "domain": VARCHAR,
+        "is_self": BOOLEAN,
+        "link_flair_text": VARCHAR,
+        "link_flair_type": VARCHAR,
+        "num_comments": SHORT,
+        "num_crossposts": SHORT,
+        "permalink": VARCHAR,
+        "score": SHORT,
+        "ups": SHORT,
+        "upvote_ratio": DECIMAL + "(3, 2)",
+        "selftext": VARCHAR,
+        "subreddit_subscribers": INT,
+        "title": VARCHAR,
+        "url": VARCHAR,
+    },
+    "comments": {
+        "id": VARCHAR + PK,
+        "name": VARCHAR + NOT_NULL,
+        "archived": BOOLEAN,
+        "author": VARCHAR,
+        "author_fullname": VARCHAR,
+        "author_flair_text": VARCHAR,
+        "body": VARCHAR,
+        "created": LONG,
+        "created_utc": LONG,
+        "distinguished": VARCHAR,
+        "is_submitter": BOOLEAN,
+        "link_id": VARCHAR + NOT_NULL,  # is submission_id
+        "parent_id": VARCHAR + NOT_NULL,
+        "permalink": VARCHAR,
+        "score": SHORT,
+        "ups": SHORT,
+    },
+}
+
 # SQL Queries
-CREATE_TABLE_IF_NOT_EXISTS = "CREATE TABLE IF NOT EXISTS {table} AS SELECT * FROM {df}"
-CREATE_OR_REPLACE_TABLE = "CREATE OR REPLACE TABLE {table} AS SELECT * FROM {table} UNION BY NAME SELECT * FROM {df}"
+CREATE_TABLE_IF_NOT_EXISTS = "CREATE TABLE IF NOT EXISTS {table}({schema})"
+INSERT_OR_REPLACE_INTO = "INSERT OR REPLACE INTO {table} SELECT * FROM {from_}"
+
+
+def get_schema_string(schema: dict[str, str]):
+    return ", ".join([f"{col} {d_type}" for (col, d_type) in schema.items()])
 
 
 @overload
@@ -138,11 +203,11 @@ def _no_empty_obj(v):
     return None if len(v) == 0 else v
 
 
-def clean_up_reddit_object(d: dict) -> dict[str, Any]:
+def _clean_up_reddit_object(d: dict) -> dict[str, Any]:
     return {k: _no_empty_obj(v) for k, v in d.items() if _isPrimitive(v)}
 
 
-def replace_author_object_with_name(sub_or_comment_dict: dict[str, Any]):
+def _replace_author_object_with_name(sub_or_comment_dict: dict[str, Any]):
     return (
         sub_or_comment_dict | {"author": sub_or_comment_dict["author"].name}
         if isinstance(sub_or_comment_dict["author"], Redditor)
@@ -150,9 +215,21 @@ def replace_author_object_with_name(sub_or_comment_dict: dict[str, Any]):
     )
 
 
+def _select_fields(
+    d: dict[str, Any], schema: Literal["submissions"] | Literal["comments"]
+):
+    fields = list(SCHEMAS[schema].keys())
+    return {k: v for k, v in d.items() if k in fields}
+
+
 def clean_entries(entries: list[Submission] | list[Comment]):
+    if not len(entries):
+        return []
+
+    entry_type = "submissions" if isinstance(entries[0], Submission) else "comments"
+
     entries_as_dict = [vars(sub) for sub in entries]
-    entries_with_author = list(map(replace_author_object_with_name, entries_as_dict))
-    clean_entries = list(map(clean_up_reddit_object, entries_with_author))
-    clean_entries.sort(key=lambda r: r["id"])
-    return clean_entries
+    entries_with_author = map(_replace_author_object_with_name, entries_as_dict)
+    entries_filtered = [_select_fields(e, entry_type) for e in entries_with_author]
+    entries_filtered.sort(key=lambda e: e["id"])
+    return list(map(_clean_up_reddit_object, entries_filtered))
