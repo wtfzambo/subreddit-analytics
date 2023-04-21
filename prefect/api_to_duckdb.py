@@ -130,7 +130,7 @@ def add_records_to_duckdb(
 async def get_subreddit_data(start_date: str, end_date: str, subreddit: str):
     # submission_ids = get_submission_ids(start_date, end_date, subreddit)
     submission_ids = get_submission_ids_but_im_cheating()
-    submission_ids_chunked = chunked(submission_ids, 50)[:1]
+    submission_ids_chunked = chunked(submission_ids, 100)
 
     print("Getting all submissions...")
     submission_futures = get_submissions_from_ids.map(
