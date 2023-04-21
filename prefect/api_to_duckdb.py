@@ -9,6 +9,7 @@ from utils_ import (
     CREATE_OR_REPLACE_TABLE,
     CREATE_TABLE_IF_NOT_EXISTS,
     SUBMISSION,
+    AsyncRedditManger,
     DuckDBManager,
     cache_results,
     chunked,
@@ -62,17 +63,33 @@ def get_submission_ids_but_im_cheating():
 
 @task(name="Get submission from ids", log_prints=True)
 async def get_submission_from_ids(ids: list[str]):
-    with get_reddit_client(is_async=True) as reddit:
-        subs: AsyncGenerator[Submission, None] = reddit.info(fullnames=ids)  # type: ignore
-        submissions = [sub async for sub in subs]
+    reddit_manager = AsyncRedditManger()
+    reddit = reddit_manager.get_new_async_reddit()
+    subs: AsyncGenerator[Submission, None] = reddit.info(fullnames=ids)  # type: ignore
+    submissions = [sub async for sub in subs]
 
-        coro = map(
-            lambda sub: (sub.load(), print(f"Loading submission {sub.id}"))[0],
-            submissions,
-        )
-        _ = await asyncio.gather(*coro)
+    coro = map(
+        lambda sub: (sub.load(), print(f"Loading submission {sub.id}"))[0],
+        submissions,
+    )
+    _ = await asyncio.gather(*coro)
 
-        return submissions
+    return submissions
+
+
+@task(name="Get submission comments")
+async def get_submission_comments(submission: Submission):
+    await submission.comments.replace_more(limit=None)
+    comments_list = submission.comments.list()
+
+    if isinstance(comments_list, Coroutine):
+        comments_list = await comments_list
+
+    comments: list[Comment] = []
+    for comment in comments_list:
+        comments.append(comment)
+
+    return comments
 
 
 @task(
@@ -104,21 +121,6 @@ def add_records_to_duckdb(
     con.sql(CREATE_OR_REPLACE_TABLE.format(table=table, df="df"))
 
 
-@task(name="Get submission comments")
-async def get_submission_comments(submission: Submission):
-    await submission.comments.replace_more(limit=None)
-    comments_list = submission.comments.list()
-
-    if isinstance(comments_list, Coroutine):
-        comments_list = await comments_list
-
-    comments: list[Comment] = []
-    for comment in comments_list:
-        comments.append(comment)
-
-    return comments
-
-
 @flow(
     name="Get subreddit data",
     flow_run_name="r/{subreddit} | from '{start_date}' to '{end_date}'",
@@ -128,25 +130,28 @@ async def get_submission_comments(submission: Submission):
 async def get_subreddit_data(start_date: str, end_date: str, subreddit: str):
     # submission_ids = get_submission_ids(start_date, end_date, subreddit)
     submission_ids = get_submission_ids_but_im_cheating()
-    submission_ids_chunked = chunked(submission_ids, 100)[:1]
+    submission_ids_chunked = chunked(submission_ids, 29)[:1]
+
     submission_futures = await get_submission_from_ids.map(
         cast(list[str], submission_ids_chunked)
     )
-
     submissions: list[Submission] = []
     for future in submission_futures:
         submissions.extend(await future.result())
 
-    # submissions = submissions[:10]
     submission_comments_futures = await get_submission_comments.map(
         cast(Submission, submissions)
     )
-
-    comments_clean = []
+    comments: list[Comment] = []
     for future in submission_comments_futures:
-        comments_clean.extend(clean_entries(await future.result()))
+        comments.extend(await future.result())
 
     submissions_clean = clean_entries(submissions)
+    comments_clean = clean_entries(comments)
+
+    reddit_manager = AsyncRedditManger()
+    for instance in reddit_manager.reddit_instances:
+        await instance.close()
 
     # create duckdb connection
     DuckDBManager(subreddit)

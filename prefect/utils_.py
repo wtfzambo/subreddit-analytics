@@ -33,10 +33,30 @@ class DuckDBManager:
             self.__initialized = True
 
 
+class AsyncRedditManger:
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls, *args, **kwargs)
+            cls.__initialized = False
+        return cls._instance
+
+    def __init__(self) -> None:
+        if not self.__initialized:
+            self.reddit_instances: list[AReddit] = []
+            self.__initialized = True
+
+    def get_new_async_reddit(self):
+        reddit = get_reddit_client(is_async=True)
+        self.reddit_instances.append(reddit)
+        return reddit
+
+
 T = TypeVar("T")
 
 # consts
-COMMENT = "ti"
+COMMENT = "t1"
 REDDITOR = "t2"
 SUBMISSION = "t3"
 MESSAGE = "t4"
