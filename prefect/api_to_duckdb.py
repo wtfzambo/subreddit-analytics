@@ -1,20 +1,24 @@
+import argparse
 import asyncio
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from typing import Any, AsyncGenerator, Coroutine, Literal, cast
 
 import pandas as pd
 from asyncpraw.models import Comment, Submission
 from pmaw import PushshiftAPI
 from utils_ import (
-    CREATE_OR_REPLACE_TABLE,
     CREATE_TABLE_IF_NOT_EXISTS,
+    INSERT_OR_REPLACE_INTO,
+    SCHEMAS,
     SUBMISSION,
+    AsyncRedditManger,
     DuckDBManager,
     cache_results,
     chunked,
     clean_entries,
     get_project_root,
     get_reddit_client,
+    get_schema_string,
 )
 
 from prefect import flow, task
@@ -22,7 +26,7 @@ from prefect.task_runners import ConcurrentTaskRunner
 from prefect.tasks import task_input_hash
 
 
-@cache_results(refresh_cache=True)
+@cache_results()
 def get_submission_ids(start_date: str, end_date: str, subreddit: str):
     # For some fucking reason, decorating this function with @task makes it run not in
     # the main thread, resulting in the following error message:
@@ -60,26 +64,42 @@ def get_submission_ids_but_im_cheating():
     return [f"{SUBMISSION}_{post_id}" for post_id in post_ids]
 
 
-@task(name="Get submission from ids", log_prints=True)
-async def get_submission_from_ids(ids: list[str]):
-    with get_reddit_client(is_async=True) as reddit:
-        subs: AsyncGenerator[Submission, None] = reddit.info(fullnames=ids)  # type: ignore
-        submissions = [sub async for sub in subs]
+@task(name="Get submissions from ids", log_prints=True)
+async def get_submissions_from_ids(ids: list[str]):
+    reddit_manager = AsyncRedditManger()
+    reddit = reddit_manager.get_new_async_reddit()
+    subs: AsyncGenerator[Submission, None] = reddit.info(fullnames=ids)  # type: ignore
+    submissions = [sub async for sub in subs]
 
-        coro = map(
-            lambda sub: (sub.load(), print(f"Loading submission {sub.id}"))[0],
-            submissions,
-        )
-        _ = await asyncio.gather(*coro)
+    coro = map(
+        lambda sub: (sub.load(), print(f"Loading submission {sub.id}"))[0],
+        submissions,
+    )
+    _ = await asyncio.gather(*coro)
 
-        return submissions
+    for sub in submissions:
+        yield sub
+
+
+@task(name="Get submission comments")
+async def get_submission_comments(
+    submission: Submission,
+) -> AsyncGenerator[Comment, None]:
+    await submission.comments.replace_more(limit=None)
+    comments_list = submission.comments.list()
+
+    if isinstance(comments_list, Coroutine):
+        comments_list = await comments_list
+
+    for comment in comments_list:
+        yield comment
 
 
 @task(
     name="Add records to Duckdb",
     task_run_name="Add {table} to Duckdb",
+    log_prints=True,
     cache_key_fn=task_input_hash,
-    # refresh_cache=True,
 )
 def add_records_to_duckdb(
     records: list[dict[str, Any]], table: Literal["submissions"] | Literal["comments"]
@@ -87,36 +107,18 @@ def add_records_to_duckdb(
     if not len(records):
         return
 
+    table_schema = SCHEMAS[table]
+    fields = list(table_schema.keys())
+
     df = pd.DataFrame.from_records(records)
+    df = df[fields]  # Need to sort the df columns in the same order as the schema
+    print(f"Found {len(df)} records for {table}, adding them to Duckdb")
 
-    try:
-        match table:
-            case "submissions":
-                df.drop("preview", axis=1, inplace=True)
-            case "comments":
-                df.drop("all_awardings", axis=1, inplace=True)
-    except KeyError as e:
-        print(f"{e}, continuing...")
+    schema_string = get_schema_string(table_schema)
 
-    df_header = df.head(0)  # noqa
     con = DuckDBManager().duckdb_con
-    con.sql(CREATE_TABLE_IF_NOT_EXISTS.format(table=table, df="df_header"))
-    con.sql(CREATE_OR_REPLACE_TABLE.format(table=table, df="df"))
-
-
-@task(name="Get submission comments")
-async def get_submission_comments(submission: Submission):
-    await submission.comments.replace_more(limit=None)
-    comments_list = submission.comments.list()
-
-    if isinstance(comments_list, Coroutine):
-        comments_list = await comments_list
-
-    comments: list[Comment] = []
-    for comment in comments_list:
-        comments.append(comment)
-
-    return comments
+    con.sql(CREATE_TABLE_IF_NOT_EXISTS.format(table=table, schema=schema_string))
+    con.sql(INSERT_OR_REPLACE_INTO.format(table=table, from_="df"))
 
 
 @flow(
@@ -128,59 +130,57 @@ async def get_submission_comments(submission: Submission):
 async def get_subreddit_data(start_date: str, end_date: str, subreddit: str):
     # submission_ids = get_submission_ids(start_date, end_date, subreddit)
     submission_ids = get_submission_ids_but_im_cheating()
-    submission_ids_chunked = chunked(submission_ids, 100)[:1]
-    submission_futures = await get_submission_from_ids.map(
+    submission_ids_chunked = chunked(submission_ids, 50)[:1]
+
+    print("Getting all submissions...")
+    submission_futures = get_submissions_from_ids.map(
         cast(list[str], submission_ids_chunked)
     )
-
-    submissions: list[Submission] = []
+    submissions_all: list[Submission] = []
     for future in submission_futures:
-        submissions.extend(await future.result())
+        submissions = [submission async for submission in future.result()]
+        submissions_all.extend(submissions)
 
-    # submissions = submissions[:10]
-    submission_comments_futures = await get_submission_comments.map(
-        cast(Submission, submissions)
+    print("Getting all submissions' comments...")
+    submission_comments_futures = get_submission_comments.map(
+        cast(Submission, submissions_all)
     )
-
-    comments_clean = []
+    comments_all: list[Comment] = []
     for future in submission_comments_futures:
-        comments_clean.extend(clean_entries(await future.result()))
+        comments = [comment async for comment in future.result()]
+        comments_all.extend(comments)
 
-    submissions_clean = clean_entries(submissions)
+    print("Closing reddit sessions...")
+    reddit_manager = AsyncRedditManger()
+    for instance in reddit_manager.reddit_instances:
+        await instance.close()
 
+    submissions_clean = clean_entries(submissions_all)
+    comments_clean = clean_entries(comments_all)
+
+    print("Adding submissions and comments to duckdb...")
     # create duckdb connection
     DuckDBManager(subreddit)
-    add_records_to_duckdb(comments_clean, "comments")
     add_records_to_duckdb(submissions_clean, "submissions")
+    add_records_to_duckdb(comments_clean, "comments")
 
 
 async def main():
-    return await get_subreddit_data("2023-04-14", "2023-04-15", "dataengineering")
+    parser = argparse.ArgumentParser(
+        description="Get subreddit data in a given time range."
+    )
+    parser.add_argument("-s", "--start", help="Start date in y-m-d format", type=str)
+    parser.add_argument("-e", "--end", help="End date in y-m-d format", type=str)
+    parser.add_argument("-r", "--subreddit", help="Subreddit name", type=str)
+
+    args = parser.parse_args()
+
+    start_date = args.start or (date.today() - timedelta(days=365)).strftime("%Y-%m-%d")
+    end_date = args.end or date.today().strftime("%Y-%m-%d")
+    subreddit = args.subreddit or "dataengineering"
+
+    return await get_subreddit_data(start_date, end_date, subreddit)
 
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-
-# For comments, there are 3 possibilities:
-# - No comments -> Skip (get this from actual comment list, not from property `num_comments`)
-# - Comments without Load more -> Append to comments table
-# - Comments WITH Load more -> run `submission.comments.replace_more(limit=None)` ->
-#   -> Append to comments table
-# For both 2nd and 3rd case, also append author to authors table.
-#
-# At a high level, flow could be something like this:
-# 1 - Get submission IDs
-# 2 - From IDs get submission objects
-# 3 - From Submission objects build submission table
-# 4 - Parse each Submission object for comments
-#
-# Common operations between submissions and comments:
-# - Convert from object to dict
-# - Keep only primitive variables
-# - Replace author object with author's name
-# - Somehow extract author and append to authors table. NOTE: This could be done at the end using
-#   duckdb tables directly and `INSERT INTO ON CONFLICT` statement so that authors can be
-#   already unique.
-# - Append to duckdb table
-# - Eventually recast unix time columns to INT
