@@ -1,16 +1,10 @@
 import os
-from typing import Literal, cast
+from typing import Literal
 
 import pandas as pd
 from dotenv import load_dotenv
 from prefect_gcp import GcpCredentials
-from utils_ import (
-    BQ_DATASET,
-    DESCRIBE_TABLE,
-    GCP_CREDENTIALS,
-    SELECT_STAR_FROM,
-    DuckDBManager,
-)
+from utils_ import BQ_DATASET, GCP_CREDENTIALS, SELECT_STAR_FROM, DuckDBManager
 
 from prefect.tasks import task
 

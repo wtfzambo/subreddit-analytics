@@ -133,7 +133,6 @@ SCHEMAS = {
 CREATE_TABLE_IF_NOT_EXISTS = "CREATE TABLE IF NOT EXISTS {table}({schema})"
 INSERT_OR_REPLACE_INTO = "INSERT OR REPLACE INTO {table} SELECT * FROM {from_}"
 SELECT_STAR_FROM = "SELECT * FROM {table}"
-DESCRIBE_TABLE = "DESCRIBE TABLE {table}"
 
 
 def get_schema_string(schema: dict[str, str]):
