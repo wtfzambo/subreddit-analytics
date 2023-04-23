@@ -133,3 +133,4 @@ dmypy.json
 *.duckdb.wal
 terraform.tfstate
 .terraform.lock.hcl
+.terraform/
