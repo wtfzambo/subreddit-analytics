@@ -98,7 +98,7 @@ async def get_submission_comments(
     cache_key_fn=task_input_hash,
 )
 def add_records_to_duckdb(
-    records: list[dict[str, Any]], table: Literal["submissions"] | Literal["comments"]
+    records: list[dict[str, Any]], table: Literal["submissions", "comments"]
 ):
     if not len(records):
         return

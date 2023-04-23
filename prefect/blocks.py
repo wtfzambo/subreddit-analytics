@@ -3,6 +3,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from prefect_gcp import GcpCredentials
+from utils_ import GCP_CREDENTIALS
 
 
 load_dotenv()
@@ -12,4 +13,4 @@ gcp_service_account_path = Path(
 ).expanduser()
 
 credentials_block = GcpCredentials(service_account_file=gcp_service_account_path)
-credentials_block.save("dataengineering-subreddit")  # type: ignore
+credentials_block.save(GCP_CREDENTIALS)  # type: ignore

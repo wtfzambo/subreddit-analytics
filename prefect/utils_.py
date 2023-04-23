@@ -63,6 +63,11 @@ MESSAGE = "t4"
 SUBREDDIT = "t5"
 AWARD = "t6"
 
+# GCP
+GCP_CREDENTIALS = "dataengineering-subreddit"
+BQ_DATASET = "subreddit_data_raw"
+
+
 # data types
 BOOLEAN = "BOOLEAN"
 TINYINT = "TINYINT"  # 1 byte
@@ -127,6 +132,8 @@ SCHEMAS = {
 # SQL Queries
 CREATE_TABLE_IF_NOT_EXISTS = "CREATE TABLE IF NOT EXISTS {table}({schema})"
 INSERT_OR_REPLACE_INTO = "INSERT OR REPLACE INTO {table} SELECT * FROM {from_}"
+SELECT_STAR_FROM = "SELECT * FROM {table}"
+DESCRIBE_TABLE = "DESCRIBE TABLE {table}"
 
 
 def get_schema_string(schema: dict[str, str]):
@@ -215,9 +222,7 @@ def _replace_author_object_with_name(sub_or_comment_dict: dict[str, Any]):
     )
 
 
-def _select_fields(
-    d: dict[str, Any], schema: Literal["submissions"] | Literal["comments"]
-):
+def _select_fields(d: dict[str, Any], schema: Literal["submissions", "comments"]):
     fields = list(SCHEMAS[schema].keys())
     return {k: v for k, v in d.items() if k in fields}
 
