@@ -14,6 +14,7 @@ duckdb = "0.7.1"
 prefect = "^2.10.4"
 asyncpraw = "^7.7.0"
 praw = "^7.7.0"
+prefect-gcp = {extras = ["bigquery"], version = "^0.4.1"}
 
 
 [tool.poetry.group.dev.dependencies]
