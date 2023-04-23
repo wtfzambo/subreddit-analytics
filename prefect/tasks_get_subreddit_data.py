@@ -1,7 +1,6 @@
-import argparse
 import asyncio
-from datetime import date, datetime, timedelta
-from typing import Any, AsyncGenerator, Coroutine, Literal, cast
+from datetime import datetime
+from typing import Any, AsyncGenerator, Coroutine, Literal
 
 import pandas as pd
 from asyncpraw.models import Comment, Submission
@@ -14,15 +13,12 @@ from utils_ import (
     AsyncRedditManger,
     DuckDBManager,
     cache_results,
-    chunked,
-    clean_entries,
     get_project_root,
     get_reddit_client,
     get_schema_string,
 )
 
-from prefect import flow, task
-from prefect.task_runners import ConcurrentTaskRunner
+from prefect import task
 from prefect.tasks import task_input_hash
 
 
@@ -119,68 +115,3 @@ def add_records_to_duckdb(
     con = DuckDBManager().duckdb_con
     con.sql(CREATE_TABLE_IF_NOT_EXISTS.format(table=table, schema=schema_string))
     con.sql(INSERT_OR_REPLACE_INTO.format(table=table, from_="df"))
-
-
-@flow(
-    name="Get subreddit data",
-    flow_run_name="r/{subreddit} | from '{start_date}' to '{end_date}'",
-    log_prints=True,
-    task_runner=ConcurrentTaskRunner(),
-)
-async def get_subreddit_data(start_date: str, end_date: str, subreddit: str):
-    # submission_ids = get_submission_ids(start_date, end_date, subreddit)
-    submission_ids = get_submission_ids_but_im_cheating()
-    submission_ids_chunked = chunked(submission_ids, 100)
-
-    print("Getting all submissions...")
-    submission_futures = get_submissions_from_ids.map(
-        cast(list[str], submission_ids_chunked)
-    )
-    submissions_all: list[Submission] = []
-    for future in submission_futures:
-        submissions = [submission async for submission in future.result()]
-        submissions_all.extend(submissions)
-
-    print("Getting all submissions' comments...")
-    submission_comments_futures = get_submission_comments.map(
-        cast(Submission, submissions_all)
-    )
-    comments_all: list[Comment] = []
-    for future in submission_comments_futures:
-        comments = [comment async for comment in future.result()]
-        comments_all.extend(comments)
-
-    print("Closing reddit sessions...")
-    reddit_manager = AsyncRedditManger()
-    for instance in reddit_manager.reddit_instances:
-        await instance.close()
-
-    submissions_clean = clean_entries(submissions_all)
-    comments_clean = clean_entries(comments_all)
-
-    print("Adding submissions and comments to duckdb...")
-    # create duckdb connection
-    DuckDBManager(subreddit)
-    add_records_to_duckdb(submissions_clean, "submissions")
-    add_records_to_duckdb(comments_clean, "comments")
-
-
-async def main():
-    parser = argparse.ArgumentParser(
-        description="Get subreddit data in a given time range."
-    )
-    parser.add_argument("-s", "--start", help="Start date in y-m-d format", type=str)
-    parser.add_argument("-e", "--end", help="End date in y-m-d format", type=str)
-    parser.add_argument("-r", "--subreddit", help="Subreddit name", type=str)
-
-    args = parser.parse_args()
-
-    start_date = args.start or (date.today() - timedelta(days=365)).strftime("%Y-%m-%d")
-    end_date = args.end or date.today().strftime("%Y-%m-%d")
-    subreddit = args.subreddit or "dataengineering"
-
-    return await get_subreddit_data(start_date, end_date, subreddit)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
