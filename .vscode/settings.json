@@ -1,28 +1,73 @@
 {
-    "editor.rulers": [
-        {"column": 88}
+  "editor.rulers": [{ "column": 88 }],
+  "python.envFile": "${workspaceFolder}/.env",
+  "python.defaultInterpreterPath": "./.venv/bin/python",
+  "python.linting.enabled": true,
+  "python.linting.flake8Enabled": true,
+  "black-formatter.importStrategy": "fromEnvironment",
+  "isort.importStrategy": "fromEnvironment",
+  "flake8.importStrategy": "fromEnvironment",
+  "python.formatting.provider": "none",
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": true
+    }
+  },
+
+  "sqlfluff.executablePath": "${workspaceFolder}/.venv/bin/sqlfluff",
+  "sqlfluff.dialect": "bigquery",
+  "sqlfluff.format.enabled": true,
+  "sqlfluff.ignoreLocalConfig": false,
+  "sqlfluff.linter.run": "onSave",
+  "sqlfluff.suppressNotifications": false,  // maybe switch to true
+  "sqlfluff.experimental.format.executeInTerminal": false,  // maybe switch to true
+  "sqlfluff.linter.lintEntireProject": false,  // maybe switch to true
+  "[jinja-sql]": {
+    "editor.defaultFormatter": "dorzey.vscode-sqlfluff",
+    "editor.formatOnSave": true
+  },
+
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/dbt-labs/dbt-jsonschema/main/schemas/dbt_yml_files.json": [
+      "/**/*.yml",
+      "!profiles.yml",
+      "!dbt_project.yml",
+      "!packages.yml",
+      "!selectors.yml",
+      "!profile_template.yml",
+      "!Task*.{yaml,yml}",
+      "!.piperider/**"
     ],
-    "python.envFile": "${workspaceFolder}/.env",
-    "python.defaultInterpreterPath": "./.venv/bin/python",
-    "python.linting.enabled": true,
-    "python.linting.flake8Enabled": true,
-    "black-formatter.importStrategy": "fromEnvironment",
-    "isort.importStrategy": "fromEnvironment",
-    "flake8.importStrategy": "fromEnvironment",
-    "python.formatting.provider": "none",
-    "[python]": {
-        "editor.defaultFormatter": "ms-python.black-formatter",
-        "editor.formatOnSave": true,
-        "editor.codeActionsOnSave": {
-            "source.organizeImports": true
-        }
-    },
-    "vsicons.associations.files": [
-        {
-            "icon": "db",
-            "extends": "db",
-            "format": "svg",
-            "extensions": ["duckdb"]
-        }
+    "https://raw.githubusercontent.com/dbt-labs/dbt-jsonschema/main/schemas/dbt_project.json": [
+      "dbt_project.yml"
+    ],
+    "https://raw.githubusercontent.com/dbt-labs/dbt-jsonschema/main/schemas/selectors.json": [
+      "selectors.yml"
+    ],
+    "https://raw.githubusercontent.com/dbt-labs/dbt-jsonschema/main/schemas/packages.json": [
+      "packages.yml"
     ]
+  },
+
+  "files.associations": {
+    "*.sql": "jinja-sql"
+  },
+
+  "vsicons.associations.files": [
+    {
+      "icon": "db",
+      "extends": "db",
+      "format": "svg",
+      "extensions": ["duckdb"]
+    },
+    {
+      "icon": "jinja",
+      "extensions": [],
+      "format": "svg",
+      "overrides": "jinja"
+    }
+  ],
+  "dbt.queryLimit": 500
 }

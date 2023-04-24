@@ -25,3 +25,9 @@ variable "comments_table" {
   type = string
   default = "comments"
 }
+
+variable "dbt_dataset" {
+  description = "BigQuery dataset for dbt models' outputs."
+  type = string
+  default = "subreddit_analytics_dbt"
+}

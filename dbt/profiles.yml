@@ -1,0 +1,14 @@
+data_engineering_subreddit:
+  outputs:
+    dev:
+      dataset: subreddit_analytics_dbt
+      job_execution_timeout_seconds: 300
+      job_retries: 1
+      keyfile: "{{ env_var('GCP_SERVICE_ACCOUNT_FILE_PATH') }}"
+      location: europe-west6
+      method: service-account
+      priority: interactive
+      project: "{{ env_var('GCP_PROJECT_ID') }}"
+      threads: 4
+      type: bigquery
+  target: dev

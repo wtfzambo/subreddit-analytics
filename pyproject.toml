@@ -16,6 +16,7 @@ asyncpraw = "^7.7.0"
 praw = "^7.7.0"
 prefect-gcp = {extras = ["bigquery"], version = "^0.4.1"}
 pandas-gbq = "^0.19.1"
+dbt-bigquery = "^1.4.3"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -24,6 +25,8 @@ flake8 = "^6.0.0"
 black = "^23.3.0"
 flake8-black = "^0.3.6"
 isort = "^5.12.0"
+sqlfluff = "^2.0.7"
+sqlfluff-templater-dbt = "^2.0.7"
 
 [build-system]
 requires = ["poetry-core"]

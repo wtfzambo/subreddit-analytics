@@ -1,0 +1,6 @@
+.venv/
+.vscode/
+.logs/
+**/target/
+**/dbt_packages/
+**/macros/
