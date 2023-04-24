@@ -1,0 +1,8 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: ""
+    columns:
+      - name: date_day
+        description: ""

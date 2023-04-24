@@ -16,17 +16,20 @@
     }
   },
 
+  "dbt.queryLimit": 500,
+  "editor.snippetSuggestions": "bottom",
+
   "sqlfluff.executablePath": "${workspaceFolder}/.venv/bin/sqlfluff",
   "sqlfluff.dialect": "bigquery",
   "sqlfluff.format.enabled": true,
   "sqlfluff.ignoreLocalConfig": false,
-  "sqlfluff.linter.run": "onSave",
-  "sqlfluff.suppressNotifications": false,  // maybe switch to true
-  "sqlfluff.experimental.format.executeInTerminal": false,  // maybe switch to true
-  "sqlfluff.linter.lintEntireProject": false,  // maybe switch to true
+  "sqlfluff.linter.run": "onType",
+  "sqlfluff.suppressNotifications": true,
+  "sqlfluff.experimental.format.executeInTerminal": false,  // setting to true prevents format on save
+  "sqlfluff.linter.lintEntireProject": false, // maybe switch to true
   "[jinja-sql]": {
     "editor.defaultFormatter": "dorzey.vscode-sqlfluff",
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
   },
 
   "yaml.schemas": {
@@ -67,7 +70,14 @@
       "extensions": [],
       "format": "svg",
       "overrides": "jinja"
+    },
+    {
+      "icon": "taskfile",
+      "extensions": [],
+      "format": "svg",
+      "filename": true,
+      "filenamesGlob": ["Taskfile", "Taskfile.dist"],
+      "extensionsGlob": ["yml", "yaml"]
     }
   ],
-  "dbt.queryLimit": 500
 }

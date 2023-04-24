@@ -1,0 +1,16 @@
+version: 2
+
+models:
+  - name: dim_authors
+    description: ""
+    columns:
+      - name: author_id
+        description: ""
+        tests:
+          - unique
+          - not_null
+
+      - name: author_hash
+        description: ""
+        tests:
+          - not_null

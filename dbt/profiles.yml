@@ -1,3 +1,6 @@
+config:
+    send_anonymous_usage_stats: False
+
 data_engineering_subreddit:
   outputs:
     dev:

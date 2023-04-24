@@ -1,0 +1,48 @@
+version: 2
+
+sources:
+  - name: subreddit_data_raw
+    tables:
+      - name: comments
+        columns:
+          - name: id
+          - name: name
+          - name: archived
+          - name: author
+          - name: author_fullname
+          - name: author_flair_text
+          - name: body
+          - name: created
+          - name: created_utc
+          - name: distinguished
+          - name: is_submitter
+          - name: link_id
+          - name: parent_id
+          - name: permalink
+          - name: score
+          - name: ups
+
+      - name: submissions
+        columns:
+          - name: id
+          - name: name
+          - name: archived
+          - name: author
+          - name: author_fullname
+          - name: author_flair_text
+          - name: created
+          - name: created_utc
+          - name: domain
+          - name: is_self
+          - name: link_flair_text
+          - name: link_flair_type
+          - name: num_comments
+          - name: num_crossposts
+          - name: permalink
+          - name: score
+          - name: ups
+          - name: upvote_ratio
+          - name: selftext
+          - name: subreddit_subscribers
+          - name: title
+          - name: url

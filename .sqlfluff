@@ -6,6 +6,8 @@ max_line_length = 120
 # Below controls SQLFluff output, see max_line_length for SQL output
 output_line_length = 120
 
+exclude_rules = structure.column_order
+
 [sqlfluff:templater:jinja]
 apply_dbt_builtins = True
 load_macros_from_path = ./dbt/macros/

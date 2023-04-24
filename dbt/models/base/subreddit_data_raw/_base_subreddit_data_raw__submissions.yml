@@ -1,0 +1,72 @@
+version: 2
+
+models:
+  - name: base_subreddit_data_raw__submissions
+    description: ""
+    columns:
+      - name: id
+        description: ""
+        tests:
+          - unique:
+              severity: error
+          - not_null:
+              severity: error
+
+      - name: archived
+        description: ""
+
+      - name: author_id
+        description: ""
+
+      - name: author_name
+        description: ""
+
+      - name: author_flair_text
+        description: ""
+
+      - name: created_at_utc
+        description: ""
+
+      - name: creation_date
+        description: ""
+
+      - name: domain
+        description: >
+          Domain of the URL of the submission (e.g. youtu.be if the submission was
+          a link to youtube)
+
+      - name: is_self
+        description: Whether the submission contains only text
+
+      - name: link_flair_text
+        description: ""
+
+      - name: link_flair_type
+        description: ""
+
+      - name: num_comments
+        description: Number of comments in the submission, may not be completely accurate
+
+      - name: num_crossposts
+        description: ""
+
+      - name: permalink
+        description: ""
+
+      - name: upvotes
+        description: ""
+
+      - name: upvote_ratio
+        description: ""
+
+      - name: selftext
+        description: ""
+
+      - name: subreddit_subscribers
+        description: ""
+
+      - name: title
+        description: ""
+
+      - name: url
+        description: URL of the submission unless it contains a link to some external site

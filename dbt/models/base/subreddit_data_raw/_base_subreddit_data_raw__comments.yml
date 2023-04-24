@@ -1,0 +1,57 @@
+version: 2
+
+models:
+  - name: base_subreddit_data_raw__comments
+    description: ""
+    columns:
+      - name: id
+        description: ""
+        tests:
+          - unique:
+              severity: error
+          - not_null:
+              severity: error
+
+      - name: archived
+        description: ""
+
+      - name: author_id
+        description: ""
+
+      - name: author_name
+        description: ""
+
+      - name: author_flair_text
+        description: ""
+
+      - name: body
+        description: ""
+
+      - name: created_at_utc
+        description: ""
+
+      - name: creation_date
+        description: ""
+
+      - name: distinguished
+        description: ""
+
+      - name: is_submitter
+        description: ""
+
+      - name: submission_id
+        description: ID of the submission where this comment was submitted
+        tests:
+          - relationships:
+              field: id
+              to: ref('submissions')
+
+      - name: parent_id
+        description: >
+          ID of either a parent comment or the submission if this comment was a top level one
+
+      - name: url
+        description: ""
+
+      - name: upvotes
+        description: ""
