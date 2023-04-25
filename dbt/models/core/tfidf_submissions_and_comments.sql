@@ -1,6 +1,4 @@
 -- noqa: disable=TMP
-{{ config(materialized="table") }}
-
 with
 
     submissions as (

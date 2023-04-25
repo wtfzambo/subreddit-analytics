@@ -73,6 +73,19 @@
         "use",
         "one",
         "much",
+        "no",
+        "run",
+        "had",
+        "engineers",
+        "ll",
+        "so",
+        "could",
+        "data",
+        "just",
+        "files",
+        "file",
+        "no",
+        "will",
     ) %}
     where {{ column }} not in {{ stopwords }}
 {%- endmacro -%}
