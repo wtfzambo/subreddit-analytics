@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: tfidf_submissions
+    description: >
+      Contains a list of words for each submission title and text and for each word
+      its respective tfidf score, so that the PK is a union of (submission_id, word)
+    columns:
+      - name: submission_id
+        description: ""
+
+      - name: word
+        description: ""
+
+      - name: tf
+        description: ""
+
+      - name: docs_with_word
+        description: How many documents (submissions) contain the word
+
+      - name: idf
+        description: ""
+
+      - name: tfidf
+        description: ""
