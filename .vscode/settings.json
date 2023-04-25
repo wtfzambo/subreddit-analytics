@@ -28,7 +28,7 @@
   "sqlfluff.experimental.format.executeInTerminal": false,  // setting to true prevents format on save
   "sqlfluff.linter.lintEntireProject": false, // maybe switch to true
   "[jinja-sql]": {
-    "editor.defaultFormatter": "dorzey.vscode-sqlfluff",
+    "editor.defaultFormatter": "innoverio.vscode-dbt-power-user",
     "editor.formatOnSave": true,
   },
 

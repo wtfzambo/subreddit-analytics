@@ -1,4 +1,7 @@
 -- noqa: disable=PRS
+
+{{ config(materialized = 'table') }}
+
 {{
     dbt_utils.date_spine(
         datepart="day",

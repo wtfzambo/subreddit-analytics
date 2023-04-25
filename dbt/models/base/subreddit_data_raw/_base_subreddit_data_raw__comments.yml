@@ -44,7 +44,7 @@ models:
         tests:
           - relationships:
               field: id
-              to: ref('submissions')
+              to: ref('base_subreddit_data_raw__submissions')
 
       - name: parent_id
         description: >
