@@ -48,7 +48,7 @@ tasks:
         - task {{.TASK}} -- my_model_name
     silent: true
     aliases: [r]
-    # label: '{{.TASK}}-{{.MODEL}}'
+    label: '{{.TASK}}-{{.MODEL}}'
     vars:
       MODEL: '{{.CLI_ARGS}}'
       MODEL_DIR: '{{.MODEL_DIR}}'

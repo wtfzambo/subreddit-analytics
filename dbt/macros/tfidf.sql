@@ -1,4 +1,4 @@
-{%- macro tfidf(relation, text_field, is_submission) -%}
+{%- macro tfidf(relation, text_field, id_column_name) -%}
 
     ,
 
@@ -6,16 +6,7 @@
         select
             id,
             regexp_extract_all(
-                lower(
-                    regexp_replace(
-                        {% if is_submission %}
-                            title || ' ' ||
-                        {% endif %} {{ text_field }},
-                        r'<[^>]+>',
-                        ''
-                    )
-                ),
-                '[a-z]{2,}'
+                lower(regexp_replace({{ text_field }}, r'<[^>]+>', '')), '[a-z]{2,}'
             ) as words_array,
             count(*) over () as n_docs
         from {{ relation }}
@@ -23,7 +14,6 @@
             not regexp_contains(
                 lower({{ text_field }}), r'(\[deleted])|(\[removed])|(\[view poll])'
             )
-            {% if is_submission -%} and is_self = true {%- endif %}
     ),
 
     words_tf as (
@@ -36,7 +26,7 @@
         from doc_words
         cross join unnest(words_array) as word
         group by 1, 2
-        having words_in_doc > 20
+        having words_in_doc > 30
     ),
 
     words_tf_per_doc as (
@@ -50,7 +40,7 @@
 
     docs_idf as (
         select
-            tf.id as {{ relation }}_id,
+            tf.id as {{ id_column_name }},
             word,
             tf.tf,
             array_length(tfs) as docs_with_word,
