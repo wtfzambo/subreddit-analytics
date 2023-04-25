@@ -15,14 +15,13 @@
                         ''
                     )
                 ),
-                '[a-z]{2, }'
+                '[a-z]{2,}'
             ) as words_array,
             count(*) over () as n_docs
         from {{ relation }}
         where
             not regexp_contains(
-                lower({{ text_field }}),
-                r'(\[deleted])|(\[removed])|(\[view poll])|(\[http.+])'
+                lower({{ text_field }}), r'(\[deleted])|(\[removed])|(\[view poll])'
             )
             {% if is_submission -%} and is_self = true {%- endif %}
     ),
@@ -63,6 +62,6 @@
     final as (select *, tf * idf as tfidf from docs_idf)
 
     select *
-    from final
+    from final {{ remove_stopwords("word") }}
 
 {%- endmacro -%}

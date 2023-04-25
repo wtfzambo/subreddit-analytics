@@ -18,12 +18,15 @@
 
   "dbt.queryLimit": 500,
   "editor.snippetSuggestions": "bottom",
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 1000,
 
   "sqlfluff.executablePath": "${workspaceFolder}/.venv/bin/sqlfluff",
   "sqlfluff.dialect": "bigquery",
   "sqlfluff.format.enabled": true,
   "sqlfluff.ignoreLocalConfig": false,
-  "sqlfluff.linter.run": "onType",
+  "sqlfluff.linter.run": "onSave",
+  "sqlfluff.linter.delay": 100,
   "sqlfluff.suppressNotifications": true,
   "sqlfluff.experimental.format.executeInTerminal": false,  // setting to true prevents format on save
   "sqlfluff.linter.lintEntireProject": false, // maybe switch to true
