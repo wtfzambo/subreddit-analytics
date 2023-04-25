@@ -1,0 +1,92 @@
+version: 2
+
+models:
+  - name: int_submissions_score_adjusted
+    description: ""
+    columns:
+      - name: id
+        description: ""
+
+      - name: archived
+        description: ""
+
+      - name: author_id
+        description: ""
+
+      - name: author_name
+        description: ""
+
+      - name: author_flair_text
+        description: ""
+
+      - name: created_at_utc
+        description: ""
+
+      - name: creation_date
+        description: ""
+
+      - name: domain
+        description: >
+          Domain of the URL of the submission (e.g. youtu.be if the submission was
+          a link to youtube)
+
+      - name: is_self
+        description: Whether the submission contains only text
+
+      - name: link_flair_text
+        description: ""
+
+      - name: link_flair_type
+        description: ""
+
+      - name: num_comments
+        description: Number of comments in the submission, may not be completely accurate
+
+      - name: num_crossposts
+        description: ""
+
+      - name: submission_url
+        description: ""
+
+      - name: upvotes
+        description: ""
+
+      - name: upvote_ratio
+        description: ""
+
+      - name: selftext
+        description: ""
+
+      - name: subreddit_subscribers
+        description: ""
+
+      - name: title
+        description: ""
+
+      - name: url
+        description: URL of the submission unless it contains a link to some external site
+
+      - name: upvotes_capped
+        description: ""
+
+      - name: n_comments_capped
+        description: ""
+
+      - name: upvotes_rescaled
+        description: ""
+
+      - name: n_comments_rescaled
+        description: ""
+
+      - name: upvotes_minmax
+        description: ""
+
+      - name: n_comments_minmax
+        description: ""
+
+      - name: score_adjusted
+        description: >
+          Overall score of the submission, taking into account the number of upvotes and
+          comments equally, and squishing the upper outliers so that they don't skew the
+          results (i.e. number of comments and upvotes accounted for are capped to a
+          certain threshold).
