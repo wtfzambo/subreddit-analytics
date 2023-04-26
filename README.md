@@ -30,6 +30,10 @@ The gist of it is as follows:
 
 The end result is [this dashboard](https://tinyurl.com/dataengineering-analytics). The most interesting part is the "Top submissions" widget. It shows a list of all the submissions pulled ordered by upvotes, but if filtered by "topic", it will show the most interesting submissions pertaining to that topic.
 
+🟢 Try playing with the "Topic" filter on the left and see how the "Top submissions" widget changes!
+
+---
+
 ⚠️ **2023-04-26** - The dashboard will stay up for roughly 3 months or until I run out of GCP credits, whichever expires first.
 
 ![Alt text](images/dashboard.gif)
