@@ -134,6 +134,10 @@ cd dbt/
 dbt build
 ```
 
+> **Note**
+>
+> The output tables are neither partitioned nor clustered. This is due to the fact that the size of data is very minimal, about a dozen megabytes in total.
+
 ## Outputs
 
 The following tables have been used for analysis:
