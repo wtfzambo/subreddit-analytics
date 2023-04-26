@@ -16,7 +16,11 @@ When I'm not debugging data pipelines I spend a lot of time reading how other en
 </p>
 <p align="center"><i>Day in the life of a data engineer</i></p>
 
-I thought it would be a fun project to pull data from said subreddit and run some analysis on it. Very meta I know.
+I thought it would be a fun project to pull data from said subreddit and run some poor man's NLP analysis on it. Very meta I know.
+
+In other words, this whole project could be described with the following question:
+
+<p align="center">**What do data engineers talk about?**</p>
 
 The gist of it is as follows:
 
@@ -24,7 +28,7 @@ The gist of it is as follows:
 2. Once the list is obtained, use [asyncpraw](https://github.com/praw-dev/asyncpraw) get pull data for each submission found, as well as all their comments.
 3. Perform some minor cleaning and persist said data in DuckDB. Why DuckDB? Because I wanted to try it. Also it makes handling upserts more convenient to  w.r.t. parquet files stashed somewhere.
 4. Take the 2 tables stored in DuckDB and upload them to BigQuery.
-5. Use dbt to model this data and perform some poor man's NLP shenanigans.
+5. Use dbt to model this data and perform some NLP shenanigans.
 6. ????
 7. Profit.
 
