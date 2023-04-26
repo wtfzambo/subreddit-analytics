@@ -1,8 +1,0 @@
-version: 2
-
-models:
-  - name: dates
-    description: ""
-    columns:
-      - name: date_day
-        description: ""

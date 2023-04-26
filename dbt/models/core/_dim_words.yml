@@ -1,0 +1,14 @@
+version: 2
+
+models:
+  - name: dim_words
+    description: ""
+    columns:
+      - name: word
+        description: ""
+
+      - name: docs_with_word
+        description: ""
+
+      - name: word_score
+        description: ""
