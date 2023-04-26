@@ -22,7 +22,7 @@ The gist of it is as follows:
 
 1. Use [Pushshift](https://github.com/pushshift/api) with [PMAW](https://github.com/mattpodolak/pmaw) to get as many submission (post) IDs as possible.
 2. Once the list is obtained, use [asyncpraw](https://github.com/praw-dev/asyncpraw) get pull data for each submission found, as well as all their comments.
-3. Perform some minor cleaning and persist said data in DuckDB. Why DuckDB? Because I wanted to try it. Also it makes it more convenient to handle upserts w.r.t. parquet files stashed somewhere.
+3. Perform some minor cleaning and persist said data in DuckDB. Why DuckDB? Because I wanted to try it. Also it makes handling upserts more convenient to  w.r.t. parquet files stashed somewhere.
 4. Take the 2 tables stored in DuckDB and upload them to BigQuery.
 5. Use dbt to model this data and perform some poor man's NLP shenanigans.
 6. ????
