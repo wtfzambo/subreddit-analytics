@@ -80,7 +80,7 @@ brew install terraform
 Then:
 
 ```bash
-cd terraform/
+cd infra/
 terraform init
 terraform plan
 terraform apply
